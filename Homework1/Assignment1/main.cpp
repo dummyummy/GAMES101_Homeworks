@@ -60,15 +60,19 @@ Eigen::Matrix4f get_projection_matrix(float eye_fov, float aspect_ratio,
               0, -n,      0,    0,
               0,  0, -(n+f), -n*f,
               0,  0,      1,    0;
+    // As the NDC is in left hand coordinates
+    // We need to flip z
+    Eigen::Matrix4f mirror = Eigen::Matrix4f::Identity();
+    mirror(2, 2) = -1.0f;
+    persp = mirror * persp;
     translate << 1, 0, 0, -(l+r)/2,
                  0, 1, 0, -(t+b)/2,
-                 0, 0, 1,  (n+f)/2,
+                 0, 0, 1, -(n+f)/2,
                  0, 0, 0,        1;
     scale << 2/(r-l),       0,       0, 0,
                    0, 2/(t-b),       0, 0,
                    0,       0, 2/(f-n), 0,
                    0,       0,       0, 1;
-    persp /= n;
     ortho = scale * translate;
     projection = ortho * persp;
     return projection;
