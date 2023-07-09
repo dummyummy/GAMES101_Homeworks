@@ -26,7 +26,7 @@ public:
     void setColor(int ind, float r, float g, float b); /*set i-th vertex color*/
     Vector3f getColor() const { return color[0]*255; } // Only one color per triangle.
     void setTexCoord(int ind, float s, float t); /*set i-th vertex texture coordinate*/
-    std::array<Vector4f, 3> toVector4() const;
+    std::array<Vector4f, 3> toVector4(float w = 1.0f) const;
 };
 
 

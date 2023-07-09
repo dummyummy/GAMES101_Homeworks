@@ -7,6 +7,11 @@
 
 constexpr double MY_PI = 3.1415926;
 
+float d2r(float degree)
+{
+    return degree * MY_PI / 180.0f;
+}
+
 Eigen::Matrix4f get_view_matrix(Eigen::Vector3f eye_pos)
 {
     Eigen::Matrix4f view = Eigen::Matrix4f::Identity();
@@ -25,14 +30,53 @@ Eigen::Matrix4f get_view_matrix(Eigen::Vector3f eye_pos)
 Eigen::Matrix4f get_model_matrix(float rotation_angle)
 {
     Eigen::Matrix4f model = Eigen::Matrix4f::Identity();
+
+    // TODO: Implement this function
+    // Create the model matrix for rotating the triangle around the Z axis.
+    // Then return it.
+    float cra = std::cos(d2r(rotation_angle)), sra = std::sin(d2r(rotation_angle));
+    model << cra, -sra, 0, 0,
+             sra,  cra, 0, 0,
+               0,    0, 1, 0,
+               0,    0, 0, 1;
+
     return model;
 }
 
-Eigen::Matrix4f get_projection_matrix(float eye_fov, float aspect_ratio, float zNear, float zFar)
+Eigen::Matrix4f get_projection_matrix(float eye_fov, float aspect_ratio,
+                                      float zNear, float zFar)
 {
-    // TODO: Copy-paste your implementation from the previous assignment.
-    Eigen::Matrix4f projection;
+    // Students will implement this function
 
+    Eigen::Matrix4f projection = Eigen::Matrix4f::Identity();
+
+    // TODO: Implement this function
+    // Create the projection matrix for the given parameters.
+    // Then return it.
+    // z value is positive
+    Eigen::Matrix4f persp, ortho, translate, scale;
+    float n = zNear, f = zFar;
+    float t = n * std::tan(d2r(eye_fov / 2)), b = -t;
+    float r = t * aspect_ratio, l = -r;
+    persp << -n,  0,      0,    0,
+              0, -n,      0,    0,
+              0,  0, -(n+f), -n*f,
+              0,  0,      1,    0;
+    // As the NDC is in left hand coordinates
+    // We need to flip z
+    Eigen::Matrix4f mirror = Eigen::Matrix4f::Identity();
+    mirror(2, 2) = -1.0f;
+    persp = mirror * persp;
+    translate << 1, 0, 0, -(l+r)/2,
+                 0, 1, 0, -(t+b)/2,
+                 0, 0, 1, -(n+f)/2,
+                 0, 0, 0,        1;
+    scale << 2/(r-l),       0,       0, 0,
+                   0, 2/(t-b),       0, 0,
+                   0,       0, 2/(f-n), 0,
+                   0,       0,       0, 1;
+    ortho = scale * translate;
+    projection = ortho * persp;
     return projection;
 }
 
