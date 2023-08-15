@@ -232,7 +232,7 @@ void Renderer::Render(const Scene& scene)
             y = ((scene.height - 1 - j + 0.5f) / static_cast<float>(scene.height) - 0.5f) * 2.0f * scale;
             x = ((i + 0.5f) / static_cast<float>(scene.width) - 0.5f) * 2.0f * scale * imageAspectRatio;
 
-            Vector3f dir = Vector3f(x, y, -1); // Don't forget to normalize this direction!
+            Vector3f dir = normalize(Vector3f(x, y, -1)); // Don't forget to normalize this direction!
             framebuffer[m++] = castRay(eye_pos, dir, scene, 0);
         }
         UpdateProgress(j / (float)scene.height);
