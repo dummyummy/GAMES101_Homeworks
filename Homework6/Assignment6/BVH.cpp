@@ -76,12 +76,37 @@ BVHBuildNode* BVHAccel::recursiveBuild(std::vector<Object*> objects)
         }
 
         auto beginning = objects.begin();
-        auto middling = objects.begin() + (objects.size() / 2);
+        decltype(objects.begin()) middling;
         auto ending = objects.end();
+
+        if (splitMethod == SplitMethod::SAH)
+        {
+            std::vector<Bounds3> rbbox;
+            rbbox.push_back((*(objects.end() - 1))->getBounds());
+            for (int i = objects.size() - 2; i >= 0; i--)
+            {
+                auto nbbox = Union(*(rbbox.end() - 1), objects[i]->getBounds());
+                rbbox.push_back(nbbox);
+            }
+            float sah = std::numeric_limits<float>::max();
+            Bounds3 bbox = objects[0]->getBounds();
+            int n = objects.size();
+            for (int i = 1; i < n - 1; i++)
+            {
+                float t = bbox.SurfaceArea() * i + rbbox[n - 1 - i].SurfaceArea() * (n - i);
+                if (t < sah)
+                {
+                    sah = t;
+                    middling = objects.begin() + i;
+                }
+                bbox = Union(bbox, objects[i]->getBounds());
+            }
+        }
+        else // NAIVE
+            middling = objects.begin() + objects.size() / 2;
 
         auto leftshapes = std::vector<Object*>(beginning, middling);
         auto rightshapes = std::vector<Object*>(middling, ending);
-
         assert(objects.size() == (leftshapes.size() + rightshapes.size()));
 
         node->left = recursiveBuild(leftshapes);
