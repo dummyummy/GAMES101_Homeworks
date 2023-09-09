@@ -22,19 +22,30 @@ int main(int argc, char** argv)
     green->Kd = Vector3f(0.14f, 0.45f, 0.091f);
     Material* white = new Material(DIFFUSE, Vector3f(0.0f));
     white->Kd = Vector3f(0.725f, 0.71f, 0.68f);
+    Material* box = new Material(MICROFACET_DIFFUSE, Vector3f(0.0f));
+    box->Kd = Vector3f(0.725f, 0.71f, 0.68f);
+    box->Ks = Vector3f(1.0f);
+    box->ior = 1.5f;
+    Material* mf1 = new Material(MICROFACET_DIFFUSE, Vector3f(0.0f));
+    mf1->Kd = Vector3f(0.80f, 0.80f, 0.80f);
+    mf1->Ks = Vector3f(1.0f);
+    mf1->ior = 20.0f;
     Material* light = new Material(DIFFUSE, (8.0f * Vector3f(0.747f+0.058f, 0.747f+0.258f, 0.747f) + 15.6f * Vector3f(0.740f+0.287f,0.740f+0.160f,0.740f) + 18.4f *Vector3f(0.737f+0.642f,0.737f+0.159f,0.737f)));
     light->Kd = Vector3f(0.65f);
 
     MeshTriangle floor("../models/cornellbox/floor.obj", white);
-    MeshTriangle shortbox("../models/cornellbox/shortbox.obj", white);
-    MeshTriangle tallbox("../models/cornellbox/tallbox.obj", white);
+    MeshTriangle shortbox("../models/cornellbox/shortbox.obj", box);
+    MeshTriangle tallbox("../models/cornellbox/tallbox.obj", box);
     MeshTriangle left("../models/cornellbox/left.obj", red);
     MeshTriangle right("../models/cornellbox/right.obj", green);
     MeshTriangle light_("../models/cornellbox/light.obj", light);
 
+    Sphere sph1(Vector3f(320, 100, 300), 100, mf1);
+
     scene.Add(&floor);
-    scene.Add(&shortbox);
-    scene.Add(&tallbox);
+    // scene.Add(&shortbox);
+    // scene.Add(&tallbox);
+    scene.Add(&sph1);
     scene.Add(&left);
     scene.Add(&right);
     scene.Add(&light_);

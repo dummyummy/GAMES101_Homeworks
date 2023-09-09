@@ -6,8 +6,9 @@
 #define RAYTRACING_MATERIAL_H
 
 #include "Vector.hpp"
+#include "global.hpp"
 
-enum MaterialType { DIFFUSE};
+enum MaterialType { DIFFUSE, MICROFACET_DIFFUSE }; // MICROFACET=COOK-TORRANCE
 
 class Material{
 private:
@@ -71,7 +72,7 @@ private:
         // kt = 1 - kr;
     }
 
-    Vector3f toWorld(const Vector3f &a, const Vector3f &N){
+    Vector3f toWorld(const Vector3f &a, const Vector3f &N){ // local coord to world coord
         Vector3f B, C;
         if (std::fabs(N.x) > std::fabs(N.y)){
             float invLen = 1.0f / std::sqrt(N.x * N.x + N.z * N.z);
@@ -83,6 +84,31 @@ private:
         }
         B = crossProduct(C, N);
         return a.x * B + a.y * C + a.z * N;
+    }
+
+    // wm should point outwards
+    float GGX_D(Vector3f wm, Vector3f wn, float alpha)
+    {
+        float NdotM = dotProduct(wn, wm);
+        float a2 = alpha * alpha;
+        float d = (NdotM * a2 - NdotM) * NdotM + 1;
+        return a2 / (M_PI * d * d);
+    }
+
+    // wm, wi should point outwards
+    float Smith_G(Vector3f wo, Vector3f wi, Vector3f wm, Vector3f wn, float alpha)
+    {
+        auto Smith_G1 = [&](Vector3f v) -> float
+        {
+            float NdotV = dotProduct(wn, v);
+            float MdotV = dotProduct(wm, v);
+            if (NdotV * MdotV <= 0)
+                return 0.0f;
+            float tanThetaSqr = (1 - NdotV * NdotV) / (NdotV * NdotV);
+            float sqr = alpha * alpha * tanThetaSqr;
+            return 2 / (1 + std::sqrt(1 + sqr));
+        };
+        return Smith_G1(wi) * Smith_G1(wo);
     }
 
 public:
@@ -131,12 +157,13 @@ Vector3f Material::getColorAt(double u, double v) {
 
 Vector3f Material::sample(const Vector3f &wi, const Vector3f &N){
     switch(m_type){
+        case MICROFACET_DIFFUSE:
         case DIFFUSE:
         {
             // uniform sample on the hemisphere
             float x_1 = get_random_float(), x_2 = get_random_float();
-            float z = std::fabs(1.0f - 2.0f * x_1);
-            float r = std::sqrt(1.0f - z * z), phi = 2 * M_PI * x_2;
+            float z = std::fabs(1.0f - 2.0f * x_1); // sample a circle uniformly
+            float r = std::sqrt(1.0f - z * z), phi = 2 * M_PI * x_2; // sample a point on that circle
             Vector3f localRay(r*std::cos(phi), r*std::sin(phi), z);
             return toWorld(localRay, N);
             
@@ -147,6 +174,7 @@ Vector3f Material::sample(const Vector3f &wi, const Vector3f &N){
 
 float Material::pdf(const Vector3f &wi, const Vector3f &wo, const Vector3f &N){
     switch(m_type){
+        case MICROFACET_DIFFUSE:
         case DIFFUSE:
         {
             // uniform sample probability 1 / (2 * PI)
@@ -160,6 +188,7 @@ float Material::pdf(const Vector3f &wi, const Vector3f &wo, const Vector3f &N){
 }
 
 Vector3f Material::eval(const Vector3f &wi, const Vector3f &wo, const Vector3f &N){
+    // wi: view direction
     switch(m_type){
         case DIFFUSE:
         {
@@ -168,6 +197,24 @@ Vector3f Material::eval(const Vector3f &wi, const Vector3f &wo, const Vector3f &
             if (cosalpha > 0.0f) {
                 Vector3f diffuse = Kd / M_PI;
                 return diffuse;
+            }
+            else
+                return Vector3f(0.0f);
+            break;
+        }
+        case MICROFACET_DIFFUSE:
+        {
+            float cosalpha = dotProduct(N, wo);
+            if (cosalpha > 0.0f) {
+                auto wm = (-wi + wo).normalized();
+                float F;
+                fresnel(wi, wm, ior, F); // Fresnel Term
+                float roughness = 0.15f;
+                float G = Smith_G(wo, -wi, wm, N, roughness); // shadowing masking term
+                float D = GGX_D(wm, N, roughness); // distribution of normals
+                float specular = F * G * D / (4 * dotProduct(N, -wi) * dotProduct(N, wo));
+                Vector3f fr = Ks * specular + (1 - F) * Kd / M_PI; // Cook-Torrance
+                return fr;
             }
             else
                 return Vector3f(0.0f);

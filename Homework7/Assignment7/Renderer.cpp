@@ -3,6 +3,7 @@
 //
 
 #include <fstream>
+#include <thread>
 #include "Scene.hpp"
 #include "Renderer.hpp"
 
@@ -21,26 +22,38 @@ void Renderer::Render(const Scene& scene)
     float scale = tan(deg2rad(scene.fov * 0.5));
     float imageAspectRatio = scene.width / (float)scene.height;
     Vector3f eye_pos(278, 273, -800);
-    int m = 0;
+    std::atomic_int m = 0;
 
     // change the spp value to change sample ammount
-    int spp = 16;
-    std::cout << "SPP: " << spp << "\n";
-    for (uint32_t j = 0; j < scene.height; ++j) {
-        for (uint32_t i = 0; i < scene.width; ++i) {
-            // generate primary ray direction
-            float x = (2 * (i + 0.5) / (float)scene.width - 1) *
-                      imageAspectRatio * scale;
-            float y = (1 - 2 * (j + 0.5) / (float)scene.height) * scale;
+    int spp = 1024;
+    int nWorkers = 8;
+    auto kernel = [&](int r)
+    {
+        for (uint32_t j = 0; j < scene.height; ++j) {
+            for (uint32_t i = 0; i < scene.width; ++i) {
+                if ((j * scene.width + i) % nWorkers != r)
+                    continue;
+                // generate primary ray direction
+                float x = (2 * (i + 0.5) / (float)scene.width - 1) *
+                        imageAspectRatio * scale;
+                float y = (1 - 2 * (j + 0.5) / (float)scene.height) * scale;
 
-            Vector3f dir = normalize(Vector3f(-x, y, 1));
-            for (int k = 0; k < spp; k++){
-                framebuffer[m] += scene.castRay(Ray(eye_pos, dir), 0) / spp;  
+                Vector3f dir = normalize(Vector3f(-x, y, 1));
+                for (int k = 0; k < spp; k++){
+                    framebuffer[j * scene.width + i] += clamp(-1.0f, 1.0f, scene.castRay(Ray(eye_pos, dir), 0)) / spp;  
+                }
+                m++;
+                if (m % scene.width == 0)
+                    UpdateProgress(m / scene.width / (float)scene.height);
             }
-            m++;
         }
-        UpdateProgress(j / (float)scene.height);
-    }
+    };
+    std::cout << "SPP: " << spp << "\n";
+    std::vector<std::thread> renders;
+    for (int w = 0; w < nWorkers; w++)
+        renders.push_back(std::thread(kernel, w));
+    for (int w = 0; w < nWorkers; w++)
+        renders[w].join();
     UpdateProgress(1.f);
 
     // save framebuffer to file

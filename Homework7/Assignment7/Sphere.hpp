@@ -38,8 +38,7 @@ public:
         float b = 2 * dotProduct(ray.direction, L);
         float c = dotProduct(L, L) - radius2;
         float t0, t1;
-        if (!
-        solveQuadratic(a, b, c, t0, t1)) return false;
+        if (!solveQuadratic(a, b, c, t0, t1)) return false;
         if (t0 < 0) t0 = t1;
         if (t0 < 0) return false;
         tnear = t0;
@@ -56,14 +55,17 @@ public:
         float t0, t1;
         if (!solveQuadratic(a, b, c, t0, t1)) return result;
         if (t0 < 0) t0 = t1;
-        if (t0 < 0) return result;
-        result.happened=true;
-
-        result.coords = Vector3f(ray.origin + ray.direction * t0);
-        result.normal = normalize(Vector3f(result.coords - center));
-        result.m = this->m;
-        result.obj = this;
-        result.distance = t0;
+        const float EPS = 0.01f; // in case the intersection is inside the sphere
+        if (t0 < EPS) return result;
+        // if (t0 > 0.1)
+        // {
+            result.happened=true;
+            result.coords = Vector3f(ray.origin + ray.direction * t0);
+            result.normal = normalize(Vector3f(result.coords - center));
+            result.m = this->m;
+            result.obj = this;
+            result.distance = t0;
+        // }
         return result;
 
     }
@@ -83,6 +85,7 @@ public:
         pos.coords = center + radius * dir;
         pos.normal = dir;
         pos.emit = m->getEmission();
+        pos.m = m;
         pdf = 1.0f / area;
     }
     float getArea(){
